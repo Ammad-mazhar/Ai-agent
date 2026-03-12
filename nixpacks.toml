@@ -1,0 +1,5 @@
+[phases.setup]
+nixPkgs = ["nodejs", "chromium", "glib", "nss", "atk", "at-spi2-atk", "libdrm", "mesa", "gbm", "alsa-lib", "pango", "cairo"]
+
+[start]
+cmd = "node index.js"
