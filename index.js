@@ -15,16 +15,19 @@ const client = new Client({
         dataPath: './.wwebjs_auth'
     }),
     puppeteer: {
-        headless: true,
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--single-process', // Highly recommended for cloud
-            '--no-zygote'
-        ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable'
-    }
+    headless: true,
+    args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--single-process',
+        '--no-zygote'
+    ],
+    // This allows the bot to find the Chrome we just installed
+    executablePath: '/app/.cache/puppeteer/chrome/linux-133.0.6943.98/chrome-linux64/chrome' 
+    // Note: If that path fails, just REMOVE the executablePath line entirely 
+    // and let Puppeteer find it automatically after the postinstall runs.
+}
 });
 
 // 4. QR Code display
