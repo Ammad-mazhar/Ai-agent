@@ -9,19 +9,19 @@ const port = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(port, () => console.log(`Heartbeat server listening on port ${port}`));
 
-// 2. Client Setup
 const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
     puppeteer: {
         headless: true,
-        // In Nixpacks, chrome-stable is usually here:
-        executablePath: '/usr/bin/google-chrome-stable', 
+        executablePath: '/usr/bin/google-chrome-stable',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
             '--single-process',
             '--no-zygote'
         ]
