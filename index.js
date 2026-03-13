@@ -1,25 +1,23 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
+const puppeteer = require('puppeteer');
 
-// 1. Heartbeat Server (Required for Railway to stay alive)
+// 1. Heartbeat Server
 const app = express();
 const port = process.env.PORT || 8080;
-app.get('/', (req, res) => res.send('Bot is active!'));
+app.get('/', (req, res) => res.send('Bot is active and healthy!'));
 app.listen(port, () => console.log(`Server listening on port ${port}`));
 
 // 2. Client Setup
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const puppeteer = require('puppeteer'); // Add this line at the top
-
 const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
     puppeteer: {
         headless: true,
-        // This is the "Magic" line:
-        executablePath: puppeteer.executablePath(), 
+        // This finds the Chrome we downloaded in the postinstall step
+        executablePath: puppeteer.executablePath(),
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox',
@@ -31,16 +29,16 @@ const client = new Client({
 
 // 3. QR Code Logic
 client.on('qr', (qr) => {
-    console.log('--- QR CODE START ---');
+    console.log('--- QR CODE RECEIVED ---');
     qrcode.generate(qr, { small: true });
-    console.log('--- QR CODE END ---');
+    console.log('Scan the code above with WhatsApp Linked Devices.');
 });
 
 client.on('ready', () => {
-    console.log('✅ WhatsApp Bot is Ready!');
+    console.log('✅ Success! WhatsApp Bot is Ready!');
 });
 
-// 4. Start the bot
+// 4. Start
 client.initialize().catch(err => {
-    console.error('❌ FAILED TO LAUNCH CHROME:', err.message);
+    console.error('❌ CRITICAL ERROR:', err.message);
 });
