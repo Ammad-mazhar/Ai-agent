@@ -14,17 +14,17 @@ const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
-   puppeteer: {
-    headless: true,
-    // This function automatically finds the chrome we just installed
-    executablePath: puppeteer.executablePath(), 
-    args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-    ]
-}
+    puppeteer: {
+        headless: true,
+        // Point exactly to the path shown in your logs:
+        executablePath: '/root/.cache/puppeteer/chrome/linux-146.0.7680.66/chrome-linux64/chrome',
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ]
+    }
 });
 
 // 3. QR Code Logic
