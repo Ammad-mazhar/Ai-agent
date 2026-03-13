@@ -15,8 +15,8 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        // Remove the hardcoded string and use this dynamic check
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || 'google-chrome-stable', 
+        // We REMOVE the hardcoded /usr/bin path 
+        // Puppeteer will now find the one we downloaded in the start command
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -27,7 +27,6 @@ const client = new Client({
         ]
     }
 });
-
 
 // 3. QR Code display
 client.on('qr', (qr) => {
