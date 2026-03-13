@@ -15,16 +15,16 @@ const client = new Client({
         dataPath: './.wwebjs_auth'
     }),
    puppeteer: {
-        headless: true,
-        // Railway (Nixpacks) installs chromium at this specific path:
-        executablePath: '/usr/bin/chromium', 
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu'
-        ]
-    }
+    headless: true,
+    // This function automatically finds the chrome we just installed
+    executablePath: puppeteer.executablePath(), 
+    args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+    ]
+}
 });
 
 // 3. QR Code Logic
