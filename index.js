@@ -16,7 +16,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        // Point exactly to the path shown in your logs:
+        // We are using the exact path from your previous log:
         executablePath: '/root/.cache/puppeteer/chrome/linux-146.0.7680.66/chrome-linux64/chrome',
         args: [
             '--no-sandbox', 
