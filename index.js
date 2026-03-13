@@ -19,10 +19,7 @@ const client = new Client({
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--single-process',
-            '--no-zygote'
+            '--disable-dev-shm-usage'
         ]
     }
 });
