@@ -9,13 +9,17 @@ app.get('/', (req, res) => res.send('Bot is active!'));
 app.listen(port, () => console.log(`Server listening on port ${port}`));
 
 // 2. Client Setup
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const puppeteer = require('puppeteer'); // Add this line at the top
+
 const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
     puppeteer: {
         headless: true,
-        // No executablePath! It will auto-find the downloaded Chrome
+        // This is the "Magic" line:
+        executablePath: puppeteer.executablePath(), 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox',
