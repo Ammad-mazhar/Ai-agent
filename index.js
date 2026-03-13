@@ -15,8 +15,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        // Using the variable we set in Railway
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+        // We remove the /usr/bin path and let it find the local download
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
