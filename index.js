@@ -13,20 +13,21 @@ const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
-    puppeteer: {
+   puppeteer: {
         headless: true,
-        executablePath: '/usr/bin/google-chrome-stable',
+        // This links the variable you just added in Railway to your code
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--disable-software-rasterizer',
             '--single-process',
             '--no-zygote'
         ]
-    }
+   }
 });
+
 
 // 3. QR Code display
 client.on('qr', (qr) => {
