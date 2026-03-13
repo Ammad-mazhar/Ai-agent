@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "start": "npx puppeteer browsers install chrome && node index.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

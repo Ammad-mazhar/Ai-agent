@@ -14,10 +14,10 @@ const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
-    puppeteer: {
+   puppeteer: {
         headless: true,
-        // This finds the Chrome we downloaded in the postinstall step
-        executablePath: puppeteer.executablePath(),
+        // Railway (Nixpacks) installs chromium at this specific path:
+        executablePath: '/usr/bin/chromium', 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox',
