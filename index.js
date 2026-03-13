@@ -13,10 +13,10 @@ const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
     }),
-   puppeteer: {
+    puppeteer: {
         headless: true,
-        // This links the variable you just added in Railway to your code
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+        // Remove the hardcoded string and use this dynamic check
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || 'google-chrome-stable', 
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -25,7 +25,7 @@ const client = new Client({
             '--single-process',
             '--no-zygote'
         ]
-   }
+    }
 });
 
 
