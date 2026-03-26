@@ -1,5 +1,16 @@
-node_modules/
+# Sensitive keys and config
 .env
+.env.*
+
+# WhatsApp session data (CRITICAL to ignore)
 .wwebjs_auth/
 .wwebjs_cache/
+
+# Dependencies and logs
+node_modules/
 npm-debug.log*
+logs/
+
+# Operating system files
+.DS_Store
+Thumbs.db
