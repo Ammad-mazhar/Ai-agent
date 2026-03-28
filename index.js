@@ -31,14 +31,7 @@ setInterval(() => {
 
   // 9 PM End of Day Report
   if (now.getHours() === 21 && now.getMinutes() === 0) {
-    console.log("🌙 9 PM: Sending End of Day Report...");
-    const reportText = `
-        🌙 END OF DAY SUMMARY
-        ---------------------
-        Status: ${isAgentEnabled ? 'ACTIVE ✅' : 'SLEEPING ⚠️'}
-        Jobs Caught Today: ${jobsAcceptedToday}/4
-        System Health: Stable
-    `;
+    const reportText = `🌙 END OF DAY SUMMARY\nStatus: ${isAgentEnabled ? 'ACTIVE ✅' : 'SLEEPING ⚠️'}\nJobs Caught Today: ${jobsAcceptedToday}/4`;
     sendSystemAlert("📊 END OF DAY REPORT", reportText);
   }
 }, 60000);
@@ -60,11 +53,17 @@ const imap = new Imap(imapConfig);
 function startListening() {
   imap.once('ready', () => {
     console.log("📨 Bot is ACTIVE: Watching for TRM emails...");
+
+    // Heartbeat using SEARCH instead of _send or noop
     setInterval(() => {
       if (imap.state === 'authenticated') {
-        imap._send('NOOP', (err) => { if (err) console.log("💓 Heartbeat ping failed."); });
+        imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
+          if (err) console.log("💓 Heartbeat ping failed.");
+          else console.log("💓 Heartbeat: Alive.");
+        });
       }
     }, 60000);
+
     imap.openBox('INBOX', false, (err) => { if (err) throw err; });
   });
 
@@ -93,17 +92,12 @@ function startListening() {
                 return;
               }
               if (subject.includes("AGENT: STATUS")) {
-                const statusText = `
-                        CURRENT STATUS: ${isAgentEnabled ? 'ACTIVE ✅' : 'SLEEPING ⚠️'}
-                        JOBS CAUGHT TODAY: ${jobsAcceptedToday}/4
-                        LAST HEARTBEAT: ${new Date().toLocaleTimeString()}
-                    `;
+                const statusText = `STATUS: ${isAgentEnabled ? 'ACTIVE' : 'SLEEPING'}\nTODAY: ${jobsAcceptedToday}/4`;
                 await sendSystemAlert("📊 AGENT REPORT", statusText);
                 return;
               }
             }
 
-            // --- SKIP IF DISABLED ---
             if (!isAgentEnabled) return;
 
             // --- JOB HUNTING LOGIC ---
@@ -124,7 +118,7 @@ function startListening() {
                 try {
                   await axios.get(acceptUrl);
                   if (!isPM) jobsAcceptedToday++;
-                  await sendSystemAlert(`✅ JOB ACCEPTED: ${zip}`, `Appliance: ${appliance}\nToday's Count: ${jobsAcceptedToday}/4`);
+                  await sendSystemAlert(`✅ JOB ACCEPTED: ${zip}`, `Appliance: ${appliance}\nCount: ${jobsAcceptedToday}/4`);
                 } catch (e) { console.log("Click failed:", e.message); }
               }
             }
