@@ -20,7 +20,7 @@ const imapConfig = {
   tlsOptions: { rejectUnauthorized: false }
 };
 
-// --- 2. Reset Logic ---
+// --- 2. Midnight Reset ---
 setInterval(() => {
   const now = new Date();
   if (now.getHours() === 0 && now.getMinutes() === 0) {
@@ -49,7 +49,11 @@ async function sendNotification(job, status) {
   const subject = status === "SUCCESS" ? `✅ JOB ACCEPTED: ${job.zip}` : `⚠️ JOB FAILED: ${job.zip}`;
   const text = `Result: ${status}\nZip: ${job.zip}\nAppliance: ${job.appliance}\nType: ${job.isPM ? 'PM' : 'Standard'}\nToday: ${jobsAcceptedToday}/4`;
 
-  await transporter.sendMail({ from: process.env.EMAIL_USER, to: process.env.CLIENT_RECEIVE_EMAIL, subject, text });
+  try {
+    await transporter.sendMail({ from: process.env.EMAIL_USER, to: process.env.CLIENT_RECEIVE_EMAIL, subject, text });
+  } catch (e) {
+    console.error("Email notification failed:", e.message);
+  }
 }
 
 // --- 4. The Bot Engine ---
@@ -59,19 +63,15 @@ function startListening() {
   imap.once('ready', () => {
     console.log("📨 Bot is ACTIVE: Watching for TRM emails...");
 
-    // HEARTBEAT to prevent ECONNRESET
-    // --- UPDATED HEARTBEAT (Pings Gmail by refreshing the inbox status) ---
-    // --- FINAL HEARTBEAT FIX (Works even if Inbox is open) ---
+    // Heartbeat using NOOP to prevent disconnection
     setInterval(() => {
       if (imap.state === 'authenticated') {
-        // This sends a raw "NOOP" (No Operation) to Gmail
-        // It's like a tiny "thump" on the door to say I'm still here
         imap._send('NOOP', (err) => {
           if (err) console.log("💓 Heartbeat ping failed.");
-          else console.log("💓 Heartbeat: Connection still alive.");
+          else console.log("💓 Heartbeat: Alive.");
         });
       }
-    }, 60000); // Once every minute
+    }, 60000);
 
     imap.openBox('INBOX', false, (err) => { if (err) throw err; });
   });
@@ -83,13 +83,16 @@ function startListening() {
       f.on('message', (msg) => {
         msg.on('body', (stream) => {
           simpleParser(stream, async (err, parsed) => {
+            if (err) return;
             const body = (parsed.text || "").toLowerCase();
-            if (!parsed.from.text.toLowerCase().includes('trm')) return;
+            const from = (parsed.from.text || "").toLowerCase();
+            if (!from.includes('trm')) return;
 
             const zipMatch = body.match(/\b\d{5}\b/);
             const zip = zipMatch ? zipMatch[0] : null;
             const appliance = ALLOWED_APPLIANCES.find(a => body.includes(a));
             const isPM = body.includes('property management') || body.includes('pm');
+
             const links = parsed.text.match(/https?:\/\/[^\s]+/g) || [];
             const acceptUrl = links.find(l => {
               const low = l.toLowerCase();
@@ -102,7 +105,7 @@ function startListening() {
                 await acceptJob(acceptUrl, { zip, appliance, isPM });
                 if (!isPM) jobsAcceptedToday++;
               } else {
-                console.log("⏳ Limit reached. Skipping.");
+                console.log("⏳ Limit reached (4). Skipping.");
               }
             }
           });
@@ -114,13 +117,17 @@ function startListening() {
   imap.on('error', (err) => {
     console.error("⚠️ IMAP Error:", err.message);
     if (imap.state !== 'authenticated') {
-      setTimeout(() => imap.connect(), 10000);
+      setTimeout(() => {
+        try { imap.connect(); } catch (e) { console.log("Reconnect failed, retrying..."); }
+      }, 10000);
     }
   });
 
   imap.on('end', () => {
-    console.log("📡 Connection closed. Reconnecting...");
-    setTimeout(() => imap.connect(), 5000);
+    console.log("📡 Connection closed. Reconnecting in 5s...");
+    setTimeout(() => {
+      try { imap.connect(); } catch (e) { console.log("Reconnect failed, retrying..."); }
+    }, 5000);
   });
 
   imap.connect();
