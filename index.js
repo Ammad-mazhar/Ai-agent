@@ -61,14 +61,17 @@ function startListening() {
 
     // HEARTBEAT to prevent ECONNRESET
     // --- UPDATED HEARTBEAT (Pings Gmail by refreshing the inbox status) ---
+    // --- FINAL HEARTBEAT FIX (Works even if Inbox is open) ---
     setInterval(() => {
       if (imap.state === 'authenticated') {
-        imap.status('INBOX', (err, box) => {
-          if (err) console.log("💓 Heartbeat ping failed, but bot is still listening.");
+        // This sends a raw "NOOP" (No Operation) to Gmail
+        // It's like a tiny "thump" on the door to say I'm still here
+        imap._send('NOOP', (err) => {
+          if (err) console.log("💓 Heartbeat ping failed.");
           else console.log("💓 Heartbeat: Connection still alive.");
         });
       }
-    }, 60000);
+    }, 60000); // Once every minute
 
     imap.openBox('INBOX', false, (err) => { if (err) throw err; });
   });
