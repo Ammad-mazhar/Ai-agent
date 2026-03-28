@@ -60,11 +60,14 @@ function startListening() {
     console.log("📨 Bot is ACTIVE: Watching for TRM emails...");
 
     // HEARTBEAT to prevent ECONNRESET
+    // --- UPDATED HEARTBEAT (Pings Gmail by refreshing the inbox status) ---
     setInterval(() => {
-      imap.noop((err) => {
-        if (err) console.log("💓 Heartbeat ping failed.");
-        else console.log("💓 Heartbeat: Alive.");
-      });
+      if (imap.state === 'authenticated') {
+        imap.status('INBOX', (err, box) => {
+          if (err) console.log("💓 Heartbeat ping failed, but bot is still listening.");
+          else console.log("💓 Heartbeat: Connection still alive.");
+        });
+      }
     }, 60000);
 
     imap.openBox('INBOX', false, (err) => { if (err) throw err; });
