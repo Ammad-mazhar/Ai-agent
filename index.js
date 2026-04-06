@@ -59,16 +59,29 @@ function startListening() {
   imap.once('ready', () => {
     console.log("📨 Bot is ACTIVE: Watching for TRM emails...");
 
-    setInterval(() => {
-      if (imap.state === 'authenticated') {
-        imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
-          if (err) console.log("💓 Heartbeat ping failed.");
-          else console.log("💓 Heartbeat: Alive.");
-        });
+    imap.openBox('INBOX', false, (err) => {
+      if (err) {
+        console.error('Failed to open INBOX:', err.message);
+        throw err;
       }
-    }, 60000);
+      console.log('📬 INBOX selected and ready.');
 
-    imap.openBox('INBOX', false, (err) => { if (err) throw err; });
+      setInterval(() => {
+        if (imap.state === 'selected') {
+          try {
+            imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
+              if (err) console.log('💓 Heartbeat ping failed:', err.message);
+              else console.log('💓 Heartbeat: Alive.');
+            });
+          } catch (e) {
+            console.error('Heartbeat search error:', e.message);
+          }
+        } else {
+          console.log(`💓 Heartbeat skipped: connection state is "${imap.state}", not "selected".`);
+        }
+      }, 60000);
+    });
+
   });
 
   imap.on('mail', () => {
