@@ -67,18 +67,16 @@ function startListening() {
       console.log('📬 INBOX selected and ready.');
 
       setInterval(() => {
-        if (imap.state === 'selected') {
-          try {
-            imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
-              if (err) console.log('💓 Heartbeat ping failed:', err.message);
-              else console.log('💓 Heartbeat: Alive.');
-            });
-          } catch (e) {
-            console.error('Heartbeat search error:', e.message);
+        imap.openBox('INBOX', false, (err) => {
+          if (err) {
+            console.error('💓 Heartbeat: failed to select INBOX:', err.message);
+            return;
           }
-        } else {
-          console.log(`💓 Heartbeat skipped: connection state is "${imap.state}", not "selected".`);
-        }
+          imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
+            if (err) console.log('💓 Heartbeat ping failed:', err.message);
+            else console.log('💓 Heartbeat: Alive.');
+          });
+        });
       }, 60000);
     });
 
