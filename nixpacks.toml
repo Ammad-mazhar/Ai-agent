@@ -28,7 +28,7 @@ aptPkgs = [
 ]
 
 [phases.build]
-cmds = ["npm install"]
+cmds = ["npm install && npx puppeteer browsers install chrome"]
 
 [start]
 cmd = "node index.js"
