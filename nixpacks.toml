@@ -5,7 +5,7 @@ nixPkgs = ["nodejs", "google-chrome", "cacert"]
 cmds = ["npm install"]
 
 [phases.build]
-# This line is the "Secret Sauce" for Puppeteer 21.x
+# This line is mandatory for Puppeteer 21+. It forces the browser into a known Linux folder.
 cmds = ["PUPPETEER_CACHE_DIR=/root/.cache/puppeteer npx puppeteer browsers install chrome"]
 
 [start]

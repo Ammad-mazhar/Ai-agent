@@ -14,7 +14,7 @@ const ALLOWED_APPLIANCES = ["refrigerator", "oven", "washer", "dryer", "stovetop
 
 const imapConfig = {
   user: process.env.EMAIL_USER,
-  password: process.env.EMAIL_PASS, 
+  password: process.env.EMAIL_PASS,
   host: 'imap.gmail.com', port: 993, tls: true,
   tlsOptions: { rejectUnauthorized: false }
 };
@@ -25,7 +25,7 @@ async function sendSystemAlert(subject, text, attachmentPath = null) {
     service: 'gmail',
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
   });
-  
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: process.env.CLIENT_RECEIVE_EMAIL,
@@ -54,7 +54,7 @@ function startListening() {
       setInterval(() => {
         imap.openBox('INBOX', false, () => {
           imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
-             console.log(err ? '💓 Ping failed' : '💓 Heartbeat: Alive.');
+            console.log(err ? '💓 Ping failed' : '💓 Heartbeat: Alive.');
           });
         });
       }, 60000);
@@ -92,28 +92,29 @@ function startListening() {
             if (zip && ALLOWED_ZIPS.has(zip) && appliance && acceptUrl) {
               if (isPM || jobsAcceptedToday < 4) {
                 console.log(`🎯 Link Found: ${acceptUrl}. Opening Browser...`);
-                
-                const browser = await puppeteer.launch({ 
+
+                const browser = await puppeteer.launch({
                   args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage', // Prevents memory crashes on small servers
-                    '--single-process'         // Saves more memory
+                    '--disable-dev-shm-usage',
+                    '--single-process'
                   ],
                   headless: "new",
-                  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
+                  // This path matches the Nixpacks install location
+                  executablePath: '/usr/bin/google-chrome'
                 });
                 const page = await browser.newPage();
-                
+
                 try {
                   await page.goto(acceptUrl, { waitUntil: 'networkidle2', timeout: 30000 });
                   await new Promise(r => setTimeout(r, 5000)); // Wait 5s for CRM to load
-                  
+
                   const screenshotPath = 'result.png';
                   await page.screenshot({ path: screenshotPath });
-                  
+
                   if (!isPM) jobsAcceptedToday++;
-                  
+
                   await sendSystemAlert(
                     `📸 JOB ATTEMPT: ${appliance} (${zip})`,
                     `The bot clicked the link. See attached screenshot for CRM status.`,
