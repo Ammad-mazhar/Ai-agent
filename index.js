@@ -14,7 +14,7 @@ const ALLOWED_APPLIANCES = ["refrigerator", "oven", "washer", "dryer", "stovetop
 
 const imapConfig = {
   user: process.env.EMAIL_USER,
-  password: process.env.EMAIL_PASS,
+  password: process.env.EMAIL_PASS, 
   host: 'imap.gmail.com', port: 993, tls: true,
   tlsOptions: { rejectUnauthorized: false }
 };
@@ -94,8 +94,14 @@ function startListening() {
                 console.log(`🎯 Link Found: ${acceptUrl}. Opening Browser...`);
                 
                 const browser = await puppeteer.launch({ 
-                    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-                    headless: "new"
+                  args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage', // Prevents memory crashes on small servers
+                    '--single-process'         // Saves more memory
+                  ],
+                  headless: "new",
+                  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
                 });
                 const page = await browser.newPage();
                 

@@ -1,34 +1,12 @@
 [phases.setup]
 nixPkgs = ["nodejs", "google-chrome", "cacert"]
-aptPkgs = [
-  "libnss3",
-  "libatk1.0-0",
-  "libatk-bridge2.0-0",
-  "libcups2",
-  "libgbm1",
-  "libasound2",
-  "libpangocairo-1.0-0",
-  "libxss1",
-  "libgtk-3-0",
-  "libxshmfence1",
-  "libnss3",
-  "libxcomposite1",
-  "libxcursor1",
-  "libxdamage1",
-  "libxi6",
-  "libxtst6",
-  "libnss3",
-  "libxrandr2",
-  "libasound2",
-  "pango",
-  "at-spi2-atk",
-  "ca-certificates",
-  "fonts-liberation",
-  "xdg-utils"
-]
+
+[phases.install]
+cmds = ["npm install"]
 
 [phases.build]
-cmds = ["npm install && npx puppeteer browsers install chrome"]
+# This line is the "Secret Sauce" for Puppeteer 21.x
+cmds = ["PUPPETEER_CACHE_DIR=/root/.cache/puppeteer npx puppeteer browsers install chrome"]
 
 [start]
 cmd = "node index.js"
