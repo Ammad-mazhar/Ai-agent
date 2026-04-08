@@ -54,10 +54,12 @@ function startListening() {
   imap.once('ready', () => {
     console.log("✅ Bot ACTIVE: Monitoring TRM emails...");
     console.log(`📊 Daily limit: 4 non-PM jobs | Status: ${isAgentEnabled ? 'ON' : 'OFF'}`);
-
+    console.log(`📧 Monitoring: ${process.env.EMAIL_USER}`);
+    console.log(`📨 Alerts to: ${process.env.CLIENT_RECEIVE_EMAIL}`);
+    
     imap.openBox('INBOX', false, (err) => {
       if (err) throw err;
-
+      
       // Heartbeat - keep connection alive
       setInterval(() => {
         imap.openBox('INBOX', false, () => {
@@ -68,19 +70,25 @@ function startListening() {
   });
 
   imap.on('mail', () => {
+    console.log('🔔 New email detected! Processing...');
+    
     imap.openBox('INBOX', false, (err, box) => {
       if (err) return console.error('📬 Inbox error:', err.message);
-
+      
       const f = imap.seq.fetch(box.messages.total + ':*', { bodies: '' });
-
+      
       f.on('message', (msg) => {
         msg.on('body', (stream) => {
           simpleParser(stream, async (err, parsed) => {
             if (err) return console.error('📧 Parse error:', err.message);
-
+            
             const from = (parsed.from.text || "").toLowerCase();
             const subject = (parsed.subject || "").toUpperCase();
             const bossEmail = process.env.CLIENT_RECEIVE_EMAIL.toLowerCase();
+
+            console.log(`\n📬 Email Details:`);
+            console.log(`   From: ${from}`);
+            console.log(`   Subject: ${subject}`);
 
             // --- REMOTE CONTROL: Listen for ON/OFF commands from your email ---
             if (from.includes(bossEmail)) {
@@ -96,42 +104,75 @@ function startListening() {
               }
             }
 
-            // Skip processing if agent is disabled or email is not from TRM
-            if (!isAgentEnabled) return console.log('⏸️  Skipping (agent disabled)');
-            if (!from.includes('trm')) return;
+            // Skip processing if agent is disabled
+            if (!isAgentEnabled) {
+              console.log('⏸️  Skipping (agent disabled)');
+              return;
+            }
 
-            console.log(`📨 New TRM email from: ${from}`);
+            // Check if email is from TRM
+            if (!from.includes('trm')) {
+              console.log(`⏭️  Skipping (not from TRM): ${from}`);
+              return;
+            }
+
+            console.log(`📨 ✅ TRM email detected! Processing job...`);
 
             const body = (parsed.text || "").toLowerCase();
-
+            
+            // DEBUG: Show first 500 chars of email body
+            console.log(`\n📄 Email body preview:\n${body.substring(0, 500)}...\n`);
+            
             // Extract data from email
             const zipMatch = body.match(/\b\d{5}\b/);
             const zip = zipMatch ? zipMatch[0] : null;
             const appliance = ALLOWED_APPLIANCES.find(a => body.includes(a));
             const isPM = body.includes('property management') || body.includes('pm');
             const links = parsed.text.match(/https?:\/\/[^\s]+/g) || [];
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable'
-            console.log(`🔍 Validation: ZIP=${zip} | Appliance=${appliance} | PM=${isPM} | Jobs Today=${jobsAcceptedToday}/4`);
+            const acceptUrl = links.find(l => l.toLowerCase().includes('accept') && !l.toLowerCase().includes('decline'));
+
+            // DEBUG: Show all found links
+            console.log(`\n🔗 Links found in email: ${links ? links.length : 0}`);
+            if (links && links.length > 0) {
+              links.forEach((link, i) => console.log(`   Link ${i + 1}: ${link}`));
+            }
+
+            console.log(`\n🔍 Validation Results:`);
+            console.log(`   ZIP: ${zip} ${zip && ALLOWED_ZIPS.has(zip) ? '✅' : '❌'}`);
+            console.log(`   Appliance: ${appliance || 'none'} ${appliance ? '✅' : '❌'}`);
+            console.log(`   PM Job: ${isPM ? 'Yes ✅' : 'No'}`);
+            console.log(`   Accept Link: ${acceptUrl ? '✅ Found' : '❌ Not found'}`);
+            console.log(`   Jobs Today: ${jobsAcceptedToday}/4 (non-PM)`);
 
             // --- VALIDATION: Check if job meets criteria ---
             if (!zip || !ALLOWED_ZIPS.has(zip)) {
-              console.log(`❌ REJECTED: Invalid ZIP (${zip || 'none'})`);
-              return;
+              console.log(`\n❌ REJECTED: Invalid ZIP (${zip || 'none'})`);
+              return sendSystemAlert(
+                "❌ Job Rejected - Invalid ZIP",
+                `ZIP: ${zip || 'not found'}\nAppliance: ${appliance || 'none'}\n\nEmail from: ${from}`
+              );
             }
 
             if (!appliance) {
-              console.log(`❌ REJECTED: No matching appliance`);
-              return;
+              console.log(`\n❌ REJECTED: No matching appliance`);
+              return sendSystemAlert(
+                "❌ Job Rejected - No Appliance Match",
+                `ZIP: ${zip}\nAppliance: none found\n\nEmail from: ${from}\n\nBody preview:\n${body.substring(0, 300)}`
+              );
             }
 
             if (!acceptUrl) {
-              console.log(`❌ REJECTED: No accept link found`);
-              return;
+              console.log(`\n❌ REJECTED: No accept link found`);
+              console.log(`   All links: ${JSON.stringify(links)}`);
+              return sendSystemAlert(
+                "❌ Job Rejected - No Accept Link",
+                `ZIP: ${zip}\nAppliance: ${appliance}\n\nNo accept link found in email.\n\nLinks found: ${links ? links.join(', ') : 'none'}`
+              );
             }
 
             // PM jobs bypass daily limit
             if (!isPM && jobsAcceptedToday >= 4) {
-              console.log(`❌ REJECTED: Daily limit reached (${jobsAcceptedToday}/4 non-PM jobs)`);
+              console.log(`\n❌ REJECTED: Daily limit reached (${jobsAcceptedToday}/4 non-PM jobs)`);
               return sendSystemAlert(
                 "⚠️ DAILY LIMIT REACHED",
                 `Non-PM job skipped: ${appliance} in ${zip}. Already accepted ${jobsAcceptedToday} jobs today.`
@@ -140,11 +181,12 @@ function startListening() {
 
             // --- JOB ACCEPTED: Open link and take screenshot ---
             const jobType = isPM ? 'PM' : 'Standard';
-            console.log(`✅ JOB ACCEPTED (${jobType}): ${appliance} in ${zip}`);
+            console.log(`\n✅ ✅ ✅ JOB ACCEPTED (${jobType}): ${appliance} in ${zip}`);
             console.log(`🌐 Opening: ${acceptUrl}`);
 
             let browser;
             try {
+              console.log('🚀 Launching browser...');
               browser = await puppeteer.launch({
                 args: [
                   '--no-sandbox',
@@ -162,19 +204,21 @@ function startListening() {
 
               console.log('🌐 Loading page...');
               await page.goto(acceptUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-
-              console.log('⏳ Waiting for page to fully load...');
+              
+              console.log('⏳ Waiting 5 seconds for page to fully load...');
               await new Promise(r => setTimeout(r, 5000));
 
               const screenshotPath = '/tmp/job-screenshot.png';
+              console.log('📸 Taking screenshot...');
               await page.screenshot({ path: screenshotPath, fullPage: true });
-              console.log('📸 Screenshot captured');
+              console.log('✅ Screenshot captured');
 
               // Increment counter only for non-PM jobs
               if (!isPM) {
                 jobsAcceptedToday++;
               }
 
+              console.log('📧 Sending notification email...');
               await sendSystemAlert(
                 `✅ JOB PROCESSED: ${appliance} (${zip})`,
                 `Job Type: ${jobType}\n` +
@@ -186,16 +230,20 @@ function startListening() {
                 screenshotPath
               );
 
-              console.log(`✅ Job complete! Total today: ${jobsAcceptedToday}/4 (non-PM jobs)`);
+              console.log(`✅ ✅ ✅ Job complete! Total today: ${jobsAcceptedToday}/4 (non-PM jobs)\n`);
 
             } catch (e) {
-              console.error("❌ Browser error:", e.message);
+              console.error("\n❌ Browser error:", e.message);
+              console.error("Stack:", e.stack);
               await sendSystemAlert(
                 `⚠️ ERROR: ${appliance} (${zip})`,
                 `Failed to process job link.\nError: ${e.message}\nLink: ${acceptUrl}`
               );
             } finally {
-              if (browser) await browser.close();
+              if (browser) {
+                console.log('🔒 Closing browser...');
+                await browser.close();
+              }
             }
           });
         });
@@ -214,6 +262,7 @@ function startListening() {
     setTimeout(() => imap.connect(), 5000);
   });
 
+  console.log('🔌 Connecting to IMAP...');
   imap.connect();
 }
 
