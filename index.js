@@ -2,7 +2,7 @@ require('dotenv').config();
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
-const puppeteer = require('puppeteer'); // Re-added for screenshots
+const puppeteer = require('puppeteer');
 
 // --- 1. Global State ---
 let jobsAcceptedToday = 0;
@@ -15,11 +15,13 @@ const ALLOWED_APPLIANCES = ["refrigerator", "oven", "washer", "dryer", "stovetop
 const imapConfig = {
   user: process.env.EMAIL_USER,
   password: process.env.EMAIL_PASS,
-  host: 'imap.gmail.com', port: 993, tls: true,
+  host: 'imap.gmail.com',
+  port: 993,
+  tls: true,
   tlsOptions: { rejectUnauthorized: false }
 };
 
-// --- 2. Notification & Screenshot Alert ---
+// --- 2. Send Notification with Screenshot ---
 async function sendSystemAlert(subject, text, attachmentPath = null) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -34,28 +36,32 @@ async function sendSystemAlert(subject, text, attachmentPath = null) {
   };
 
   if (attachmentPath) {
-    mailOptions.attachments = [{ filename: 'screen.png', path: attachmentPath }];
+    mailOptions.attachments = [{ filename: 'screenshot.png', path: attachmentPath }];
   }
 
   try {
     await transporter.sendMail(mailOptions);
-  } catch (e) { console.error("Alert failed:", e.message); }
+    console.log(`📧 Alert sent: ${subject}`);
+  } catch (e) {
+    console.error("❌ Email send failed:", e.message);
+  }
 }
 
-// --- 3. The Bot Engine ---
+// --- 3. Email Monitoring Bot ---
 const imap = new Imap(imapConfig);
 
 function startListening() {
   imap.once('ready', () => {
-    console.log("📨 Bot is ACTIVE: Watching for TRM emails...");
+    console.log("✅ Bot ACTIVE: Monitoring TRM emails...");
+    console.log(`📊 Daily limit: 4 non-PM jobs | Status: ${isAgentEnabled ? 'ON' : 'OFF'}`);
+    
     imap.openBox('INBOX', false, (err) => {
       if (err) throw err;
-      // Heartbeat
+      
+      // Heartbeat - keep connection alive
       setInterval(() => {
         imap.openBox('INBOX', false, () => {
-          imap.search(['UNSEEN', ['HEADER', 'Subject', 'PING']], (err) => {
-            console.log(err ? '💓 Ping failed' : '💓 Heartbeat: Alive.');
-          });
+          console.log('💓 Heartbeat: Connection alive');
         });
       }, 60000);
     });
@@ -63,25 +69,42 @@ function startListening() {
 
   imap.on('mail', () => {
     imap.openBox('INBOX', false, (err, box) => {
-      if (err) return;
+      if (err) return console.error('📬 Inbox error:', err.message);
+      
       const f = imap.seq.fetch(box.messages.total + ':*', { bodies: '' });
+      
       f.on('message', (msg) => {
         msg.on('body', (stream) => {
           simpleParser(stream, async (err, parsed) => {
-            if (err) return;
+            if (err) return console.error('📧 Parse error:', err.message);
+            
             const from = (parsed.from.text || "").toLowerCase();
             const subject = (parsed.subject || "").toUpperCase();
             const bossEmail = process.env.CLIENT_RECEIVE_EMAIL.toLowerCase();
 
-            // Remote Controls
+            // --- REMOTE CONTROL: Listen for ON/OFF commands from your email ---
             if (from.includes(bossEmail)) {
-              if (subject.includes("AGENT: OFF")) { isAgentEnabled = false; return sendSystemAlert("⚠️ AGENT SLEEPING", "Off via email"); }
-              if (subject.includes("AGENT: ON")) { isAgentEnabled = true; return sendSystemAlert("✅ AGENT ACTIVE", "On via email"); }
+              if (subject.includes("AGENT: OFF")) {
+                isAgentEnabled = false;
+                console.log("⏸️  Agent PAUSED via email command");
+                return sendSystemAlert("⚠️ AGENT PAUSED", "Bot disabled via email");
+              }
+              if (subject.includes("AGENT: ON")) {
+                isAgentEnabled = true;
+                console.log("▶️  Agent RESUMED via email command");
+                return sendSystemAlert("✅ AGENT ACTIVE", "Bot enabled via email");
+              }
             }
 
-            if (!isAgentEnabled || !from.includes('trm')) return;
+            // Skip processing if agent is disabled or email is not from TRM
+            if (!isAgentEnabled) return console.log('⏸️  Skipping (agent disabled)');
+            if (!from.includes('trm')) return;
+
+            console.log(`📨 New TRM email from: ${from}`);
 
             const body = (parsed.text || "").toLowerCase();
+            
+            // Extract data from email
             const zipMatch = body.match(/\b\d{5}\b/);
             const zip = zipMatch ? zipMatch[0] : null;
             const appliance = ALLOWED_APPLIANCES.find(a => body.includes(a));
@@ -89,45 +112,91 @@ function startListening() {
             const links = parsed.text.match(/https?:\/\/[^\s]+/g) || [];
             const acceptUrl = links.find(l => l.toLowerCase().includes('accept') && !l.toLowerCase().includes('decline'));
 
-            if (zip && ALLOWED_ZIPS.has(zip) && appliance && acceptUrl) {
-              if (isPM || jobsAcceptedToday < 4) {
-                console.log(`🎯 Link Found: ${acceptUrl}. Opening Browser...`);
+            console.log(`🔍 Validation: ZIP=${zip} | Appliance=${appliance} | PM=${isPM} | Jobs Today=${jobsAcceptedToday}/4`);
 
-                const browser = await puppeteer.launch({
-                  args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--single-process'
-                  ],
-                  headless: "new",
-                  // This path matches the Nixpacks install location
-                  executablePath: '/usr/bin/google-chrome'
-                });
-                const page = await browser.newPage();
+            // --- VALIDATION: Check if job meets criteria ---
+            if (!zip || !ALLOWED_ZIPS.has(zip)) {
+              console.log(`❌ REJECTED: Invalid ZIP (${zip || 'none'})`);
+              return;
+            }
 
-                try {
-                  await page.goto(acceptUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-                  await new Promise(r => setTimeout(r, 5000)); // Wait 5s for CRM to load
+            if (!appliance) {
+              console.log(`❌ REJECTED: No matching appliance`);
+              return;
+            }
 
-                  const screenshotPath = 'result.png';
-                  await page.screenshot({ path: screenshotPath });
+            if (!acceptUrl) {
+              console.log(`❌ REJECTED: No accept link found`);
+              return;
+            }
 
-                  if (!isPM) jobsAcceptedToday++;
+            // PM jobs bypass daily limit
+            if (!isPM && jobsAcceptedToday >= 4) {
+              console.log(`❌ REJECTED: Daily limit reached (${jobsAcceptedToday}/4 non-PM jobs)`);
+              return sendSystemAlert(
+                "⚠️ DAILY LIMIT REACHED",
+                `Non-PM job skipped: ${appliance} in ${zip}. Already accepted ${jobsAcceptedToday} jobs today.`
+              );
+            }
 
-                  await sendSystemAlert(
-                    `📸 JOB ATTEMPT: ${appliance} (${zip})`,
-                    `The bot clicked the link. See attached screenshot for CRM status.`,
-                    screenshotPath
-                  );
-                  console.log("✅ Attempt finished. Screenshot sent.");
+            // --- JOB ACCEPTED: Open link and take screenshot ---
+            const jobType = isPM ? 'PM' : 'Standard';
+            console.log(`✅ JOB ACCEPTED (${jobType}): ${appliance} in ${zip}`);
+            console.log(`🌐 Opening: ${acceptUrl}`);
 
-                } catch (e) {
-                  console.error("❌ Click Error:", e.message);
-                } finally {
-                  await browser.close();
-                }
+            let browser;
+            try {
+              browser = await puppeteer.launch({
+                args: [
+                  '--no-sandbox',
+                  '--disable-setuid-sandbox',
+                  '--disable-dev-shm-usage',
+                  '--single-process',
+                  '--disable-gpu'
+                ],
+                headless: "new",
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium'
+              });
+
+              const page = await browser.newPage();
+              await page.setViewport({ width: 1280, height: 800 });
+
+              console.log('🌐 Loading page...');
+              await page.goto(acceptUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+              
+              console.log('⏳ Waiting for page to fully load...');
+              await new Promise(r => setTimeout(r, 5000));
+
+              const screenshotPath = '/tmp/job-screenshot.png';
+              await page.screenshot({ path: screenshotPath, fullPage: true });
+              console.log('📸 Screenshot captured');
+
+              // Increment counter only for non-PM jobs
+              if (!isPM) {
+                jobsAcceptedToday++;
               }
+
+              await sendSystemAlert(
+                `✅ JOB PROCESSED: ${appliance} (${zip})`,
+                `Job Type: ${jobType}\n` +
+                `Appliance: ${appliance}\n` +
+                `ZIP: ${zip}\n` +
+                `Jobs Today: ${jobsAcceptedToday}/4 (non-PM)\n\n` +
+                `Link opened: ${acceptUrl}\n\n` +
+                `See attached screenshot for confirmation.`,
+                screenshotPath
+              );
+
+              console.log(`✅ Job complete! Total today: ${jobsAcceptedToday}/4 (non-PM jobs)`);
+
+            } catch (e) {
+              console.error("❌ Browser error:", e.message);
+              await sendSystemAlert(
+                `⚠️ ERROR: ${appliance} (${zip})`,
+                `Failed to process job link.\nError: ${e.message}\nLink: ${acceptUrl}`
+              );
+            } finally {
+              if (browser) await browser.close();
             }
           });
         });
@@ -135,9 +204,28 @@ function startListening() {
     });
   });
 
-  imap.on('error', () => setTimeout(() => imap.connect(), 10000));
-  imap.on('end', () => setTimeout(() => imap.connect(), 5000));
+  imap.on('error', (err) => {
+    console.error('❌ IMAP error:', err.message);
+    console.log('🔄 Reconnecting in 10 seconds...');
+    setTimeout(() => imap.connect(), 10000);
+  });
+
+  imap.on('end', () => {
+    console.log('🔌 Connection ended. Reconnecting in 5 seconds...');
+    setTimeout(() => imap.connect(), 5000);
+  });
+
   imap.connect();
 }
+
+// Reset daily counter at midnight
+setInterval(() => {
+  const now = new Date();
+  if (now.getHours() === 0 && now.getMinutes() === 0) {
+    jobsAcceptedToday = 0;
+    console.log('🔄 Daily counter reset to 0');
+    sendSystemAlert("🔄 DAILY RESET", "Job counter reset. Ready for new day!");
+  }
+}, 60000); // Check every minute
 
 startListening();
