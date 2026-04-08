@@ -1,19 +1,20 @@
-# Use the official Puppeteer image with Chromium pre-installed
+# Use pre-built Puppeteer image (Chromium already installed)
 FROM ghcr.io/puppeteer/puppeteer:21.5.0
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy only package files first (better caching)
+COPY package.json ./
 
-# Install dependencies (use npm install instead of npm ci)
-RUN npm install --omit=dev
+# Install dependencies with timeout protection
+RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
 
-# Copy the rest of your bot code
+# Copy application code
 COPY . .
 
-# Set environment variable for Puppeteer
+# Set Puppeteer to use pre-installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Start the bot

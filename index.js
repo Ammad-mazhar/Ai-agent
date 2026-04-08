@@ -54,10 +54,10 @@ function startListening() {
   imap.once('ready', () => {
     console.log("✅ Bot ACTIVE: Monitoring TRM emails...");
     console.log(`📊 Daily limit: 4 non-PM jobs | Status: ${isAgentEnabled ? 'ON' : 'OFF'}`);
-    
+
     imap.openBox('INBOX', false, (err) => {
       if (err) throw err;
-      
+
       // Heartbeat - keep connection alive
       setInterval(() => {
         imap.openBox('INBOX', false, () => {
@@ -70,14 +70,14 @@ function startListening() {
   imap.on('mail', () => {
     imap.openBox('INBOX', false, (err, box) => {
       if (err) return console.error('📬 Inbox error:', err.message);
-      
+
       const f = imap.seq.fetch(box.messages.total + ':*', { bodies: '' });
-      
+
       f.on('message', (msg) => {
         msg.on('body', (stream) => {
           simpleParser(stream, async (err, parsed) => {
             if (err) return console.error('📧 Parse error:', err.message);
-            
+
             const from = (parsed.from.text || "").toLowerCase();
             const subject = (parsed.subject || "").toUpperCase();
             const bossEmail = process.env.CLIENT_RECEIVE_EMAIL.toLowerCase();
@@ -103,15 +103,14 @@ function startListening() {
             console.log(`📨 New TRM email from: ${from}`);
 
             const body = (parsed.text || "").toLowerCase();
-            
+
             // Extract data from email
             const zipMatch = body.match(/\b\d{5}\b/);
             const zip = zipMatch ? zipMatch[0] : null;
             const appliance = ALLOWED_APPLIANCES.find(a => body.includes(a));
             const isPM = body.includes('property management') || body.includes('pm');
             const links = parsed.text.match(/https?:\/\/[^\s]+/g) || [];
-            const acceptUrl = links.find(l => l.toLowerCase().includes('accept') && !l.toLowerCase().includes('decline'));
-
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable'
             console.log(`🔍 Validation: ZIP=${zip} | Appliance=${appliance} | PM=${isPM} | Jobs Today=${jobsAcceptedToday}/4`);
 
             // --- VALIDATION: Check if job meets criteria ---
@@ -163,7 +162,7 @@ function startListening() {
 
               console.log('🌐 Loading page...');
               await page.goto(acceptUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-              
+
               console.log('⏳ Waiting for page to fully load...');
               await new Promise(r => setTimeout(r, 5000));
 
