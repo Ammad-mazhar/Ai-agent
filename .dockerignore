@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log*
+.npm
+*.png
+*.log
+history.log
+quota.json
+.env
