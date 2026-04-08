@@ -4,7 +4,8 @@
   "description": "High-speed TRM Email Sniper",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "node -e \"if (process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD !== 'true') { require('child_process').execSync('npx puppeteer browsers install chrome', { stdio: 'inherit' }); }\""
   },
   "dependencies": {
   "axios": "^1.6.0",
