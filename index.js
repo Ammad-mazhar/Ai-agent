@@ -118,17 +118,18 @@ function startListening() {
 
             console.log(`📨 ✅ TRM email detected from theappliancerepairmen.com! Processing job...`);
 
-            const body = (parsed.text || "").toLowerCase();
+            const body = (parsed.text || parsed.html || "").toLowerCase();
             
             // DEBUG: Show first 500 chars of email body
             console.log(`\n📄 Email body preview:\n${body.substring(0, 500)}...\n`);
             
-            // Extract data from email
+            // Extract data from email (use parsed.html if text is not available)
+            const emailContent = parsed.text || parsed.html || "";
             const zipMatch = body.match(/\b\d{5}\b/);
             const zip = zipMatch ? zipMatch[0] : null;
             const appliance = ALLOWED_APPLIANCES.find(a => body.includes(a));
             const isPM = body.includes('property management') || body.includes('pm');
-            const links = parsed.text.match(/https?:\/\/[^\s]+/g) || [];
+            const links = emailContent.match(/https?:\/\/[^\s<>"]+/g) || [];
             const acceptUrl = links.find(l => l.toLowerCase().includes('accept') && !l.toLowerCase().includes('decline'));
 
             // DEBUG: Show all found links
