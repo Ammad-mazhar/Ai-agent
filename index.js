@@ -52,7 +52,7 @@ const imap = new Imap(imapConfig);
 
 function startListening() {
   imap.once('ready', () => {
-    console.log("✅ Bot ACTIVE: Monitoring TRM emails...");
+    console.log("✅ Bot ACTIVE: Monitoring emails from theappliancerepairmen.com...");
     console.log(`📊 Daily limit: 4 non-PM jobs | Status: ${isAgentEnabled ? 'ON' : 'OFF'}`);
     console.log(`📧 Monitoring: ${process.env.EMAIL_USER}`);
     console.log(`📨 Alerts to: ${process.env.CLIENT_RECEIVE_EMAIL}`);
@@ -110,13 +110,13 @@ function startListening() {
               return;
             }
 
-            // Check if email is from TRM
-            if (!from.includes('trm')) {
+            // Check if email is from TRM (theappliancerepairmen.com)
+            if (!from.includes('theappliancerepairmen.com') && !from.includes('trm')) {
               console.log(`⏭️  Skipping (not from TRM): ${from}`);
               return;
             }
 
-            console.log(`📨 ✅ TRM email detected! Processing job...`);
+            console.log(`📨 ✅ TRM email detected from theappliancerepairmen.com! Processing job...`);
 
             const body = (parsed.text || "").toLowerCase();
             
