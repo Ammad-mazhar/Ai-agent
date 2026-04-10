@@ -181,7 +181,8 @@ function startListening() {
                   '--no-first-run',
                   '--no-zygote'
                 ],
-                headless: true
+                headless: true,
+                executablePath: '/usr/bin/chromium'
               });
 
               const page = await browser.newPage();
