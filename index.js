@@ -181,7 +181,7 @@ function startListening() {
                   '--no-first-run',
                   '--no-zygote'
                 ],
-                headless: true,
+                headless: "new",
                 executablePath: '/usr/bin/chromium'
               });
 
