@@ -1,21 +1,17 @@
-# Use pre-built Puppeteer image (Chromium already installed)
+# Use official Puppeteer Docker image with Chromium pre-installed
 FROM ghcr.io/puppeteer/puppeteer:21.5.0
 
 # Set working directory
 WORKDIR /app
 
-# Copy only package files first (better caching)
+# Copy package files
 COPY package.json ./
 
-# Install dependencies with timeout protection
-RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
+# Install dependencies
+RUN npm install --omit=dev
 
 # Copy application code
 COPY . .
-
-# Set Puppeteer to use pre-installed Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Start the bot
 CMD ["node", "index.js"]

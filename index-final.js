@@ -53,10 +53,10 @@ function startListening() {
     console.log(`📊 No limits - All credit jobs accepted | Status: ${isAgentEnabled ? 'ON' : 'OFF'}`);
     console.log(`📧 Monitoring: ${process.env.EMAIL_USER}`);
     console.log(`📨 Alerts to: ${process.env.CLIENT_RECEIVE_EMAIL}`);
-
+    
     imap.openBox('INBOX', false, (err) => {
       if (err) throw err;
-
+      
       // Heartbeat - keep connection alive
       setInterval(() => {
         imap.openBox('INBOX', false, () => {
@@ -68,17 +68,17 @@ function startListening() {
 
   imap.on('mail', () => {
     console.log('🔔 New email detected! Processing...');
-
+    
     imap.openBox('INBOX', false, (err, box) => {
       if (err) return console.error('📬 Inbox error:', err.message);
-
+      
       const f = imap.seq.fetch(box.messages.total + ':*', { bodies: '' });
-
+      
       f.on('message', (msg) => {
         msg.on('body', (stream) => {
           simpleParser(stream, async (err, parsed) => {
             if (err) return console.error('📧 Parse error:', err.message);
-
+            
             const from = (parsed.from.text || "").toLowerCase();
             const subject = (parsed.subject || "").toUpperCase();
             const bossEmail = process.env.CLIENT_RECEIVE_EMAIL.toLowerCase();
@@ -116,20 +116,20 @@ function startListening() {
             console.log(`📨 ✅ TRM email detected from theappliancerepairmen.com! Processing job...`);
 
             const body = (parsed.text || parsed.html || "").toLowerCase();
-
+            
             // DEBUG: Show first 500 chars of email body
             console.log(`\n📄 Email body preview:\n${body.substring(0, 500)}...\n`);
-
+            
             // Extract data from email
             const emailContent = parsed.text || parsed.html || "";
-
+            
             // Extract ZIP for logging only
             const zipMatch = body.match(/\b\d{5}\b/);
             const zip = zipMatch ? zipMatch[0] : 'Unknown';
-
+            
             // Check for credit payment - ONLY VALIDATION
             const isCredit = body.includes('credit') || body.includes('cc') || body.includes('card');
-
+            
             // Find accept link
             const links = emailContent.match(/https?:\/\/[^\s<>"]+/g) || [];
             const acceptUrl = links.find(l => l.toLowerCase().includes('accept') && !l.toLowerCase().includes('decline'));
@@ -177,11 +177,11 @@ function startListening() {
                   '--no-sandbox',
                   '--disable-setuid-sandbox',
                   '--disable-dev-shm-usage',
-                  '--single-process',
-                  '--disable-gpu'
+                  '--disable-gpu',
+                  '--no-first-run',
+                  '--no-zygote'
                 ],
-                headless: "new",
-                executablePath: puppeteer.executablePath()
+                headless: true
               });
 
               const page = await browser.newPage();
@@ -189,7 +189,7 @@ function startListening() {
 
               console.log('🌐 Loading page...');
               await page.goto(acceptUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-
+              
               console.log('⏳ Waiting 5 seconds for page to fully load...');
               await new Promise(r => setTimeout(r, 5000));
 
